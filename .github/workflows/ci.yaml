@@ -1,0 +1,31 @@
+name: CI Build
+
+on:
+  push:
+    branches:
+      - "*"  # Trigger on all branches
+  pull_request:
+    branches:
+      - "main"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Runs unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Unit tests
+        run: go test -v ./...

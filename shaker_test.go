@@ -1,0 +1,212 @@
+package shaker
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/maxatome/go-testdeep/helpers/tdhttp"
+	"github.com/maxatome/go-testdeep/td"
+)
+
+type methodType int
+
+const (
+	get    methodType = iota
+	post   methodType = 1 * iota
+	put    methodType = 2 * iota
+	delete methodType = 3 * iota
+)
+
+var ErrSample = errors.New("sample error")
+
+type emptyStructType struct{}
+
+func goodHandler(ctx *Context, in *emptyStructType) error {
+	return nil
+}
+
+func wrongHandlerInputCount(ctx *Context, in *emptyStructType, inn *emptyStructType) error {
+	return nil
+}
+
+func TestRegisteringEndpoint(t *testing.T) {
+	tests := []struct {
+		name          string
+		regFunc       func(*Shaker) error
+		expectedError error
+	}{
+		{
+			name: "Good signature",
+			regFunc: func(s *Shaker) error {
+				return s.Get("/test", goodHandler, http.StatusOK)
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Wrong input arguments",
+			regFunc: func(s *Shaker) error {
+				return s.Get("/test2", wrongHandlerInputCount, http.StatusOK)
+			},
+			expectedError: ErrInvalidHandlerSignature,
+		},
+	}
+
+	shakerr := NewShaker(nil)
+
+	for _, test := range tests {
+		t.Run(test.name, func(tt *testing.T) {
+			expected, got := test.expectedError, test.regFunc(&shakerr)
+			if !errors.Is(expected, got) {
+				tt.Fatalf("errors does not match : %v != %v", got, expected)
+			}
+		})
+
+	}
+}
+
+func TestCallEndpoint(t *testing.T) {
+	tests := []struct {
+		name               string
+		method             methodType
+		beforeFct          func(skr *Shaker)
+		endpointToCall     string
+		payloadToSend      string
+		expectedStatusCode int
+		expectedPayload    string
+	}{
+		{
+			name:   "No input with output",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+				type Out struct {
+					Var string `json:"var"`
+				}
+
+				skr.Get("/test", func(ctx *gin.Context) (Out, error) {
+					return Out{Var: "test"}, nil
+				}, http.StatusOK)
+			},
+			endpointToCall:     "/test",
+			expectedStatusCode: http.StatusOK,
+			expectedPayload: `{
+			"var": "test"
+		}`,
+		},
+		{
+			name:   "Both input and output",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+				type In struct {
+					Var string `uri:"var"`
+					Opt string `form:"option"`
+				}
+
+				type Out struct {
+					Var    string `json:"var"`
+					Option string `json:"option"`
+				}
+
+				skr.Get("/test/:var", func(ctx *Context, input *In) (Out, error) {
+					return Out{Var: input.Var, Option: input.Opt}, nil
+				}, http.StatusOK)
+			},
+			endpointToCall:     "/test/a?option=aa",
+			expectedStatusCode: http.StatusOK,
+			expectedPayload: `
+			{
+				"var": "a",
+				"option": "aa"
+			}`,
+		},
+		{
+			name:   "Post method",
+			method: post,
+			beforeFct: func(skr *Shaker) {
+				type In struct {
+					Var string `json:"var"`
+				}
+
+				type Out struct {
+					Var string `json:"var"`
+				}
+
+				skr.Post("/test", func(ctx *gin.Context, input *In) (Out, error) {
+					return Out{Var: input.Var}, nil
+				}, http.StatusCreated)
+			},
+			endpointToCall: "/test",
+			payloadToSend: `
+			{
+			"var": "abc"
+			}`,
+			expectedStatusCode: http.StatusCreated,
+			expectedPayload: `
+			{
+				"var": "abc"
+			}`,
+		},
+		{
+			name:   "Custom error",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+
+				skr.Get("/sample", func(ctx *gin.Context) error {
+					return ErrSample
+				}, http.StatusCreated)
+			},
+			endpointToCall:     "/sample",
+			expectedStatusCode: http.StatusExpectationFailed,
+			expectedPayload: `
+			{
+				"error": "sample error"
+			}`,
+		},
+		{
+			name:   "Default error",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+
+				skr.Get("/defaultError", func(ctx *gin.Context) error {
+					return errors.New("fancy error")
+				}, http.StatusCreated)
+			},
+			endpointToCall:     "/defaultError",
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedPayload: `
+			{
+				"error": "internal server error"
+			}`,
+		},
+	}
+
+	for _, test := range tests {
+		shaker := NewShaker(&MappedErrors{
+			ErrSample: http.StatusExpectationFailed,
+		})
+		testAPI := tdhttp.NewTestAPI(t, shaker.engine)
+		test.beforeFct(&shaker)
+
+		tt := testAPI.
+			Name(test.name)
+
+		switch test.method {
+		case get:
+			tt = tt.Get(test.endpointToCall)
+		case post:
+			tt = tt.Post(test.endpointToCall, strings.NewReader(test.payloadToSend), "Content-Type", "application/json")
+		case put:
+			tt = tt.Put(test.endpointToCall, strings.NewReader(test.payloadToSend), "Content-Type", "application/json")
+		case delete:
+			tt = tt.Delete(test.endpointToCall, strings.NewReader(test.payloadToSend), "Content-Type", "application/json")
+		}
+
+		tt.CmpStatus(test.expectedStatusCode)
+
+		if test.expectedPayload != "" {
+			tt.CmpJSONBody(td.JSON(test.expectedPayload))
+		}
+	}
+}
