@@ -27,7 +27,7 @@ func (s *shaker) Get(path string, handler interface{}, defaultStatusCode int) er
 		defaultStatusCode: defaultStatusCode,
 	}.ginize()
 
-	if err != err {
+	if err != nil {
 		return err
 	}
 
@@ -88,7 +88,7 @@ func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
 
 	// Check input and output parameters
 	if inputCount > 2 || outputCount > 2 {
-		logrus.Fatal("invalid handler signature")
+		logrus.Error("invalid handler signature")
 		return nil, ErrInvalidHandlerSignature
 	}
 

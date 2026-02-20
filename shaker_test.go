@@ -31,7 +31,6 @@ func wrongHandlerInputCount(ctx *Context, in *emptyStructType, inn *emptyStructT
 }
 
 func TestRegisteringEndpoint(t *testing.T) {
-
 	tests := []struct {
 		name          string
 		regFunc       func(*shaker) error
