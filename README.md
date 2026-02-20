@@ -2,7 +2,7 @@
 
 Shaker is a wrapper that allows you to define handlers that take an input structure as parameter (optionnal) and returns a pair of output struct (optionnal too) and an error
 
-**Why choose Shaker **
+### **Why choose Shaker**
 
 Shaker uses the powerful **Gin-Gonic** HTTP server with some cool features :
 
@@ -40,7 +40,7 @@ import (
   "github.com/kessaro/shaker"
 )
 
-// Define your input and output structure
+// Define your input and output structures
 
 type in struct {
     Var string `uri:"var"`
@@ -52,7 +52,7 @@ type out struct {
     Option string `json:"option"`
 }
 
-func myHandler(ctx *shaker.Context, input *in) (out, error) {
+func copyStringHandler(ctx *shaker.Context, input *in) (out, error) {
     return out{
         Var: input.Var,
         Option: input.Opt
@@ -64,8 +64,8 @@ func main() {
   shaker := shaker.NewShaker()
 
   // Register your handlers
-  shaker.Get("/copy", myHandler, http.StatusOK)
-    
+  shaker.Get("/copy", copyStringHandler, http.StatusOK)
+
 
   // Start server on port 8080 (default)
   // Server will listen on 0.0.0.0:8080 (localhost:8080 on Windows)

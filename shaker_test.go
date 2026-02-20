@@ -1,6 +1,7 @@
 package shaker
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -19,7 +20,52 @@ const (
 	delete methodType = 3 * iota
 )
 
-func TestShaker(t *testing.T) {
+type emptyStructType struct{}
+
+func goodHandler(ctx *Context, in *emptyStructType) error {
+	return nil
+}
+
+func wrongHandlerInputCount(ctx *Context, in *emptyStructType, inn *emptyStructType) error {
+	return nil
+}
+
+func TestRegisteringEndpoint(t *testing.T) {
+	tests := []struct {
+		name          string
+		regFunc       func(*shaker) error
+		expectedError error
+	}{
+		{
+			name: "Good signature",
+			regFunc: func(s *shaker) error {
+				return s.Get("/test", goodHandler, http.StatusOK)
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Wrong input arguments",
+			regFunc: func(s *shaker) error {
+				return s.Get("/test2", wrongHandlerInputCount, http.StatusOK)
+			},
+			expectedError: ErrInvalidHandlerSignature,
+		},
+	}
+
+	shakerr := NewShaker()
+
+	for _, test := range tests {
+		t.Run(test.name, func(tt *testing.T) {
+			expected, got := test.expectedError, test.regFunc(&shakerr)
+			if !errors.Is(expected, got) {
+				tt.Fatalf("errors does not match : %v != %v", got, expected)
+			}
+		})
+
+	}
+}
+
+func TestCallEndpoint(t *testing.T) {
 	tests := []struct {
 		name               string
 		method             methodType
