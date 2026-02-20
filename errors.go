@@ -1,6 +1,9 @@
 package shaker
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 func ErrNotFound() errNotFound {
 	return errNotFound{}
@@ -22,3 +25,5 @@ func (e errNotFound) Error() string {
 	}
 	return fmt.Sprintf("%s not found", e.ResourceName)
 }
+
+var ErrInvalidHandlerSignature = errors.New("invalid handler signature")

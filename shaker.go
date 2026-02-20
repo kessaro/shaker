@@ -21,30 +21,58 @@ func NewShaker() shaker {
 	}
 }
 
-func (s *shaker) Get(path string, handler interface{}, defaultStatusCode int) {
-	s.engine.GET(path, shakerFunc{
+func (s *shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
+	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
-	}.ginize())
+	}.ginize()
+
+	if err != err {
+		return err
+	}
+
+	s.engine.GET(path, ginHandler)
+	return nil
 }
-func (s *shaker) Post(path string, handler interface{}, defaultStatusCode int) {
-	s.engine.POST(path, shakerFunc{
+func (s *shaker) Post(path string, handler interface{}, defaultStatusCode int) error {
+	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
-	}.ginize())
+	}.ginize()
+
+	if err != nil {
+		return err
+	}
+
+	s.engine.POST(path, ginHandler)
+	return nil
 }
 
-func (s *shaker) Put(path string, handler interface{}, defaultStatusCode int) {
-	s.engine.PUT(path, shakerFunc{
+func (s *shaker) Put(path string, handler interface{}, defaultStatusCode int) error {
+	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
-	}.ginize())
+	}.ginize()
+
+	if err != nil {
+		return err
+	}
+
+	s.engine.PUT(path, ginHandler)
+	return nil
 }
-func (s *shaker) Delete(path string, handler interface{}, defaultStatusCode int) {
-	s.engine.DELETE(path, shakerFunc{
+func (s *shaker) Delete(path string, handler interface{}, defaultStatusCode int) error {
+	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
-	}.ginize())
+	}.ginize()
+
+	if err != nil {
+		return err
+	}
+
+	s.engine.DELETE(path, ginHandler)
+	return nil
 }
 
 type shakerFunc struct {
@@ -52,7 +80,7 @@ type shakerFunc struct {
 	defaultStatusCode int
 }
 
-func (sf shakerFunc) ginize() gin.HandlerFunc {
+func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
 	cbValue := reflect.ValueOf(sf.callback)
 	functType := cbValue.Type()
 
@@ -61,6 +89,7 @@ func (sf shakerFunc) ginize() gin.HandlerFunc {
 	// Check input and output parameters
 	if inputCount > 2 || outputCount > 2 {
 		logrus.Fatal("invalid handler signature")
+		return nil, ErrInvalidHandlerSignature
 	}
 
 	// TODO: check in/out types
@@ -118,7 +147,7 @@ func (sf shakerFunc) ginize() gin.HandlerFunc {
 		} else {
 			handleErr(ctx, &sf, errI.(error), nil)
 		}
-	}
+	}, nil
 }
 
 type errorBody struct {
