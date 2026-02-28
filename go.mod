@@ -1,4 +1,4 @@
-module kessaro/shaker
+module github.com/kessaro/shaker
 
 go 1.25.5
 
