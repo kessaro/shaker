@@ -33,19 +33,19 @@ func wrongHandlerInputCount(ctx *Context, in *emptyStructType, inn *emptyStructT
 func TestRegisteringEndpoint(t *testing.T) {
 	tests := []struct {
 		name          string
-		regFunc       func(*shaker) error
+		regFunc       func(*Shaker) error
 		expectedError error
 	}{
 		{
 			name: "Good signature",
-			regFunc: func(s *shaker) error {
+			regFunc: func(s *Shaker) error {
 				return s.Get("/test", goodHandler, http.StatusOK)
 			},
 			expectedError: nil,
 		},
 		{
 			name: "Wrong input arguments",
-			regFunc: func(s *shaker) error {
+			regFunc: func(s *Shaker) error {
 				return s.Get("/test2", wrongHandlerInputCount, http.StatusOK)
 			},
 			expectedError: ErrInvalidHandlerSignature,
@@ -69,7 +69,7 @@ func TestCallEndpoint(t *testing.T) {
 	tests := []struct {
 		name               string
 		method             methodType
-		beforeFct          func(skr *shaker)
+		beforeFct          func(skr *Shaker)
 		endpointToCall     string
 		payloadToSend      string
 		expectedStatusCode int
@@ -78,7 +78,7 @@ func TestCallEndpoint(t *testing.T) {
 		{
 			name:   "No input with output",
 			method: get,
-			beforeFct: func(skr *shaker) {
+			beforeFct: func(skr *Shaker) {
 				type Out struct {
 					Var string `json:"var"`
 				}
@@ -96,7 +96,7 @@ func TestCallEndpoint(t *testing.T) {
 		{
 			name:   "Both input and output",
 			method: get,
-			beforeFct: func(skr *shaker) {
+			beforeFct: func(skr *Shaker) {
 				type In struct {
 					Var string `uri:"var"`
 					Opt string `form:"option"`
@@ -122,7 +122,7 @@ func TestCallEndpoint(t *testing.T) {
 		{
 			name:   "Post method",
 			method: post,
-			beforeFct: func(skr *shaker) {
+			beforeFct: func(skr *Shaker) {
 				type In struct {
 					Var string `json:"var"`
 				}

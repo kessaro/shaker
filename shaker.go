@@ -9,19 +9,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type shaker struct {
+type Shaker struct {
 	engine *gin.Engine
 }
 
 type Context = gin.Context
 
-func NewShaker() shaker {
-	return shaker{
+func NewShaker() Shaker {
+	return Shaker{
 		engine: gin.New(),
 	}
 }
 
-func (s *shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
+func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
@@ -34,7 +34,7 @@ func (s *shaker) Get(path string, handler interface{}, defaultStatusCode int) er
 	s.engine.GET(path, ginHandler)
 	return nil
 }
-func (s *shaker) Post(path string, handler interface{}, defaultStatusCode int) error {
+func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
@@ -48,7 +48,7 @@ func (s *shaker) Post(path string, handler interface{}, defaultStatusCode int) e
 	return nil
 }
 
-func (s *shaker) Put(path string, handler interface{}, defaultStatusCode int) error {
+func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
@@ -61,7 +61,7 @@ func (s *shaker) Put(path string, handler interface{}, defaultStatusCode int) er
 	s.engine.PUT(path, ginHandler)
 	return nil
 }
-func (s *shaker) Delete(path string, handler interface{}, defaultStatusCode int) error {
+func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
@@ -163,6 +163,6 @@ func handleErr(ctx *gin.Context, sf *shakerFunc, err error, out any) {
 	}
 }
 
-func (s *shaker) Shake() error {
+func (s *Shaker) Shake() error {
 	return s.engine.Run()
 }
