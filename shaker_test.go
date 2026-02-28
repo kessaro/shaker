@@ -20,6 +20,8 @@ const (
 	delete methodType = 3 * iota
 )
 
+var ErrSample = errors.New("sample error")
+
 type emptyStructType struct{}
 
 func goodHandler(ctx *Context, in *emptyStructType) error {
@@ -52,7 +54,7 @@ func TestRegisteringEndpoint(t *testing.T) {
 		},
 	}
 
-	shakerr := NewShaker()
+	shakerr := NewShaker(nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(tt *testing.T) {
@@ -146,10 +148,44 @@ func TestCallEndpoint(t *testing.T) {
 				"var": "abc"
 			}`,
 		},
+		{
+			name:   "Custom error",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+
+				skr.Get("/sample", func(ctx *gin.Context) error {
+					return ErrSample
+				}, http.StatusCreated)
+			},
+			endpointToCall:     "/sample",
+			expectedStatusCode: http.StatusExpectationFailed,
+			expectedPayload: `
+			{
+				"error": "sample error"
+			}`,
+		},
+		{
+			name:   "Default error",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+
+				skr.Get("/defaultError", func(ctx *gin.Context) error {
+					return errors.New("fancy error")
+				}, http.StatusCreated)
+			},
+			endpointToCall:     "/defaultError",
+			expectedStatusCode: http.StatusInternalServerError,
+			expectedPayload: `
+			{
+				"error": "internal server error"
+			}`,
+		},
 	}
 
 	for _, test := range tests {
-		shaker := NewShaker()
+		shaker := NewShaker(&MappedErrors{
+			ErrSample: http.StatusExpectationFailed,
+		})
 		testAPI := tdhttp.NewTestAPI(t, shaker.engine)
 		test.beforeFct(&shaker)
 

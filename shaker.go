@@ -9,15 +9,30 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type MappedErrors map[error]int
+
 type Shaker struct {
-	engine *gin.Engine
+	engine     *gin.Engine
+	mappedErrs MappedErrors
 }
 
 type Context = gin.Context
 
-func NewShaker() Shaker {
+func NewShaker(customErrors *MappedErrors) Shaker {
+	errs := MappedErrors{
+		ErrRessourceNotFound:       http.StatusNotFound,
+		ErrInvalidHandlerSignature: http.StatusTeapot,
+	}
+
+	if customErrors != nil {
+		for e, v := range *customErrors {
+			errs[e] = v
+		}
+	}
+
 	return Shaker{
-		engine: gin.New(),
+		engine:     gin.New(),
+		mappedErrs: errs,
 	}
 }
 
@@ -25,6 +40,7 @@ func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) er
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
+		mappedErrors:      s.mappedErrs,
 	}.ginize()
 
 	if err != nil {
@@ -38,6 +54,7 @@ func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int) e
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
+		mappedErrors:      s.mappedErrs,
 	}.ginize()
 
 	if err != nil {
@@ -52,6 +69,7 @@ func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int) er
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
+		mappedErrors:      s.mappedErrs,
 	}.ginize()
 
 	if err != nil {
@@ -65,6 +83,7 @@ func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int)
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
+		mappedErrors:      s.mappedErrs,
 	}.ginize()
 
 	if err != nil {
@@ -78,6 +97,7 @@ func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int)
 type shakerFunc struct {
 	callback          interface{}
 	defaultStatusCode int
+	mappedErrors      MappedErrors
 }
 
 func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
@@ -151,15 +171,19 @@ func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
 }
 
 type errorBody struct {
-	Err error `json:"error"`
+	Err string `json:"error"`
 }
 
 func handleErr(ctx *gin.Context, sf *shakerFunc, err error, out any) {
-	switch err.(type) {
-	case errNotFound:
-		ctx.JSON(http.StatusNotFound, errorBody{Err: err})
-	default:
+	if err == nil {
 		ctx.JSON(sf.defaultStatusCode, out)
+		return
+	}
+
+	if errorFromMapping, found := sf.mappedErrors[err]; found {
+		ctx.JSON(errorFromMapping, errorBody{Err: err.Error()})
+	} else {
+		ctx.JSON(http.StatusInternalServerError, errorBody{Err: "internal server error"})
 	}
 }
 
