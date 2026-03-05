@@ -21,6 +21,10 @@ func NewShaker() Shaker {
 	}
 }
 
+func (s *Shaker) Handle() http.Handler {
+	return s.engine.Handler()
+}
+
 func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
