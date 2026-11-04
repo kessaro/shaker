@@ -56,7 +56,8 @@ func copyStringHandler(ctx *shaker.Context, input *In) (Out, error) {
 func main() {
     shaker := shaker.NewShaker(nil)
 
-    if err := shaker.Get("/copy/:var", copyStringHandler, http.StatusOK); err != nil {
+    api := shaker.Group("/api")
+    if err := api.Get("/copy/:var", copyStringHandler, http.StatusOK); err != nil {
         log.Fatalf("failed to register handler: %v", err)
     }
 
@@ -65,6 +66,24 @@ func main() {
     }
 }
 ```
+
+### Grouping routes
+
+Use `Group` to register related endpoints under a shared prefix. Groups can be nested, and support the same HTTP methods and handler signatures as `Shaker`:
+
+```go
+api := shaker.Group("/api")
+v1 := api.Group("/v1")
+
+if err := v1.Get("/users", listUsersHandler, http.StatusOK); err != nil {
+    log.Fatalf("failed to register handler: %v", err)
+}
+if err := v1.Post("/users", createUserHandler, http.StatusCreated); err != nil {
+    log.Fatalf("failed to register handler: %v", err)
+}
+```
+
+These routes are registered at `/api/v1/users`.
 
 ## Contributing
 

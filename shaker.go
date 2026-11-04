@@ -17,6 +17,11 @@ type Shaker struct {
 	mappedErrs MappedErrors
 }
 
+type shakerGroup struct {
+	router *gin.RouterGroup
+	shaker *Shaker
+}
+
 type Context = gin.Context
 
 func NewShaker(customErrors *MappedErrors) Shaker {
@@ -41,68 +46,69 @@ func (s *Shaker) Handler() http.Handler {
 	return s.engine.Handler()
 }
 
-func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
-	ginHandler, err := shakerFunc{
-		callback:          handler,
-		defaultStatusCode: defaultStatusCode,
-		mappedErrors:      s.mappedErrs,
-	}.ginize()
-
-	if err != nil {
-		return err
+func (s *Shaker) Group(path string) *shakerGroup {
+	return &shakerGroup{
+		router: s.engine.Group(path),
+		shaker: s,
 	}
+}
 
-	s.engine.GET(path, ginHandler)
-	return nil
+func (g *shakerGroup) Group(path string) *shakerGroup {
+	return &shakerGroup{
+		router: g.router.Group(path),
+		shaker: g.shaker,
+	}
+}
+
+func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
+	return s.registerHandler(s.engine, http.MethodGet, path, handler, defaultStatusCode)
 }
 func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int) error {
-	ginHandler, err := shakerFunc{
-		callback:          handler,
-		defaultStatusCode: defaultStatusCode,
-		mappedErrors:      s.mappedErrs,
-	}.ginize()
-
-	if err != nil {
-		return err
-	}
-
-	s.engine.POST(path, ginHandler)
-	return nil
+	return s.registerHandler(s.engine, http.MethodPost, path, handler, defaultStatusCode)
 }
 
 func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int) error {
-	ginHandler, err := shakerFunc{
-		callback:          handler,
-		defaultStatusCode: defaultStatusCode,
-		mappedErrors:      s.mappedErrs,
-	}.ginize()
-
-	if err != nil {
-		return err
-	}
-
-	s.engine.PUT(path, ginHandler)
-	return nil
+	return s.registerHandler(s.engine, http.MethodPut, path, handler, defaultStatusCode)
 }
 func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int) error {
+	return s.registerHandler(s.engine, http.MethodDelete, path, handler, defaultStatusCode)
+}
+
+func (g *shakerGroup) Get(path string, handler interface{}, defaultStatusCode int) error {
+	return g.shaker.registerHandler(g.router, http.MethodGet, path, handler, defaultStatusCode)
+}
+
+func (g *shakerGroup) Post(path string, handler interface{}, defaultStatusCode int) error {
+	return g.shaker.registerHandler(g.router, http.MethodPost, path, handler, defaultStatusCode)
+}
+
+func (g *shakerGroup) Put(path string, handler interface{}, defaultStatusCode int) error {
+	return g.shaker.registerHandler(g.router, http.MethodPut, path, handler, defaultStatusCode)
+}
+
+func (g *shakerGroup) Delete(path string, handler interface{}, defaultStatusCode int) error {
+	return g.shaker.registerHandler(g.router, http.MethodDelete, path, handler, defaultStatusCode)
+}
+
+func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handler interface{}, defaultStatusCode int) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
-		mappedErrors:      s.mappedErrs,
+		shaker:            s,
 	}.ginize()
 
 	if err != nil {
 		return err
 	}
 
-	s.engine.DELETE(path, ginHandler)
+	router.Handle(method, path, ginHandler)
 	return nil
 }
 
 type shakerFunc struct {
 	callback          interface{}
 	defaultStatusCode int
-	mappedErrors      MappedErrors
+	shaker            *Shaker
 }
 
 func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
@@ -203,7 +209,7 @@ func handleErr(ctx *gin.Context, sf *shakerFunc, err error, out any) {
 	// look through the mapped errors using errors.Is instead of indexing the map
 	// directly with `err`. The latter can panic if `err` holds an unhashable
 	// concrete type (e.g. validator.ValidationErrors).
-	for mappedErr, status := range sf.mappedErrors {
+	for mappedErr, status := range sf.shaker.mappedErrs {
 		if errors.Is(err, mappedErr) {
 			ctx.JSON(status, errorBody{Err: err.Error()})
 			return

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -73,6 +74,78 @@ func TestRegisteringEndpoint(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+func TestRouteGroups(t *testing.T) {
+	shaker := NewShaker(&MappedErrors{
+		ErrSample: http.StatusExpectationFailed,
+	})
+	api := shaker.Group("/api")
+	v1 := api.Group("/v1")
+
+	routes := []struct {
+		method string
+		path   string
+		status int
+		add    func() error
+	}{
+		{
+			method: http.MethodGet,
+			path:   "/api/v1/items",
+			status: http.StatusOK,
+			add:    func() error { return v1.Get("/items", func(ctx *Context) error { return nil }, http.StatusOK) },
+		},
+		{
+			method: http.MethodPost,
+			path:   "/api/v1/items",
+			status: http.StatusCreated,
+			add:    func() error { return v1.Post("/items", func(ctx *Context) error { return nil }, http.StatusCreated) },
+		},
+		{
+			method: http.MethodPut,
+			path:   "/api/v1/items/1",
+			status: http.StatusAccepted,
+			add: func() error {
+				return v1.Put("/items/:id", func(ctx *Context) error { return nil }, http.StatusAccepted)
+			},
+		},
+		{
+			method: http.MethodDelete,
+			path:   "/api/v1/items/1",
+			status: http.StatusNoContent,
+			add: func() error {
+				return v1.Delete("/items/:id", func(ctx *Context) error { return nil }, http.StatusNoContent)
+			},
+		},
+		{
+			method: http.MethodGet,
+			path:   "/api/v1/mapped",
+			status: http.StatusExpectationFailed,
+			add:    func() error { return v1.Get("/mapped", func(ctx *Context) error { return ErrSample }, http.StatusOK) },
+		},
+	}
+
+	for _, route := range routes {
+		if err := route.add(); err != nil {
+			t.Fatalf("failed to register %s %s: %v", route.method, route.path, err)
+		}
+	}
+
+	if err := v1.Get("/invalid", wrongHandlerInputCount, http.StatusOK); !errors.Is(err, ErrInvalidHandlerSignature) {
+		t.Fatalf("invalid handler signature error = %v, want %v", err, ErrInvalidHandlerSignature)
+	}
+
+	for _, route := range routes {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			request := httptest.NewRequest(route.method, route.path, nil)
+			response := httptest.NewRecorder()
+			shaker.Handler().ServeHTTP(response, request)
+
+			if response.Code != route.status {
+				t.Errorf("status = %d, want %d", response.Code, route.status)
+			}
+		})
 	}
 }
 
