@@ -12,6 +12,9 @@ import (
 
 type MappedErrors map[error]int
 
+type Context = gin.Context
+type MiddlewareFunc = gin.HandlerFunc
+
 type Shaker struct {
 	engine     *gin.Engine
 	mappedErrs MappedErrors
@@ -21,8 +24,6 @@ type shakerGroup struct {
 	router *gin.RouterGroup
 	shaker *Shaker
 }
-
-type Context = gin.Context
 
 func NewShaker(customErrors *MappedErrors) Shaker {
 	errs := MappedErrors{
@@ -60,43 +61,43 @@ func (g *shakerGroup) Group(path string) *shakerGroup {
 	}
 }
 
-func (g *shakerGroup) Use(middleware ...gin.HandlerFunc) {
+func (g *shakerGroup) Use(middleware ...MiddlewareFunc) {
 	g.router.Use(middleware...)
 }
 
-func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return s.registerHandler(s.engine, http.MethodGet, path, handler, defaultStatusCode, middleware...)
 }
 
-func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return s.registerHandler(s.engine, http.MethodPost, path, handler, defaultStatusCode, middleware...)
 }
 
-func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return s.registerHandler(s.engine, http.MethodPut, path, handler, defaultStatusCode, middleware...)
 }
 
-func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return s.registerHandler(s.engine, http.MethodDelete, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Get(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (g *shakerGroup) Get(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return g.shaker.registerHandler(g.router, http.MethodGet, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Post(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (g *shakerGroup) Post(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return g.shaker.registerHandler(g.router, http.MethodPost, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Put(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (g *shakerGroup) Put(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return g.shaker.registerHandler(g.router, http.MethodPut, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (g *shakerGroup) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	return g.shaker.registerHandler(g.router, http.MethodDelete, path, handler, defaultStatusCode, middleware...)
 }
 
-func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handler interface{}, defaultStatusCode int, middleware ...MiddlewareFunc) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
