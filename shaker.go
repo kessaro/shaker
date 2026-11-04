@@ -60,37 +60,43 @@ func (g *shakerGroup) Group(path string) *shakerGroup {
 	}
 }
 
-func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int) error {
-	return s.registerHandler(s.engine, http.MethodGet, path, handler, defaultStatusCode)
-}
-func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int) error {
-	return s.registerHandler(s.engine, http.MethodPost, path, handler, defaultStatusCode)
+func (g *shakerGroup) Use(middleware ...gin.HandlerFunc) {
+	g.router.Use(middleware...)
 }
 
-func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int) error {
-	return s.registerHandler(s.engine, http.MethodPut, path, handler, defaultStatusCode)
-}
-func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int) error {
-	return s.registerHandler(s.engine, http.MethodDelete, path, handler, defaultStatusCode)
+func (s *Shaker) Get(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return s.registerHandler(s.engine, http.MethodGet, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Get(path string, handler interface{}, defaultStatusCode int) error {
-	return g.shaker.registerHandler(g.router, http.MethodGet, path, handler, defaultStatusCode)
+func (s *Shaker) Post(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return s.registerHandler(s.engine, http.MethodPost, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Post(path string, handler interface{}, defaultStatusCode int) error {
-	return g.shaker.registerHandler(g.router, http.MethodPost, path, handler, defaultStatusCode)
+func (s *Shaker) Put(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return s.registerHandler(s.engine, http.MethodPut, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Put(path string, handler interface{}, defaultStatusCode int) error {
-	return g.shaker.registerHandler(g.router, http.MethodPut, path, handler, defaultStatusCode)
+func (s *Shaker) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return s.registerHandler(s.engine, http.MethodDelete, path, handler, defaultStatusCode, middleware...)
 }
 
-func (g *shakerGroup) Delete(path string, handler interface{}, defaultStatusCode int) error {
-	return g.shaker.registerHandler(g.router, http.MethodDelete, path, handler, defaultStatusCode)
+func (g *shakerGroup) Get(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return g.shaker.registerHandler(g.router, http.MethodGet, path, handler, defaultStatusCode, middleware...)
 }
 
-func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handler interface{}, defaultStatusCode int) error {
+func (g *shakerGroup) Post(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return g.shaker.registerHandler(g.router, http.MethodPost, path, handler, defaultStatusCode, middleware...)
+}
+
+func (g *shakerGroup) Put(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return g.shaker.registerHandler(g.router, http.MethodPut, path, handler, defaultStatusCode, middleware...)
+}
+
+func (g *shakerGroup) Delete(path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
+	return g.shaker.registerHandler(g.router, http.MethodDelete, path, handler, defaultStatusCode, middleware...)
+}
+
+func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handler interface{}, defaultStatusCode int, middleware ...gin.HandlerFunc) error {
 	ginHandler, err := shakerFunc{
 		callback:          handler,
 		defaultStatusCode: defaultStatusCode,
@@ -101,7 +107,10 @@ func (s *Shaker) registerHandler(router gin.IRoutes, method, path string, handle
 		return err
 	}
 
-	router.Handle(method, path, ginHandler)
+	handlers := make(gin.HandlersChain, 0, len(middleware)+1)
+	handlers = append(handlers, middleware...)
+	handlers = append(handlers, ginHandler)
+	router.Handle(method, path, handlers...)
 	return nil
 }
 

@@ -149,6 +149,42 @@ func TestRouteGroups(t *testing.T) {
 	}
 }
 
+func TestGroupAndHandlerMiddleware(t *testing.T) {
+	shaker := NewShaker(nil)
+	api := shaker.Group("/api")
+	api.Use(func(ctx *gin.Context) {
+		ctx.Header("X-Group-Middleware", "applied")
+		ctx.Next()
+	})
+
+	var callOrder []string
+	handlerMiddleware := func(ctx *gin.Context) {
+		callOrder = append(callOrder, "handler middleware before")
+		ctx.Next()
+		callOrder = append(callOrder, "handler middleware after")
+	}
+	if err := api.Get("/items", func(ctx *Context) error {
+		callOrder = append(callOrder, "handler")
+		return nil
+	}, http.StatusOK, handlerMiddleware); err != nil {
+		t.Fatalf("failed to register handler: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/items", nil)
+	response := httptest.NewRecorder()
+	shaker.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if got := response.Header().Get("X-Group-Middleware"); got != "applied" {
+		t.Errorf("group middleware header = %q, want %q", got, "applied")
+	}
+	if got, want := strings.Join(callOrder, ","), "handler middleware before,handler,handler middleware after"; got != want {
+		t.Errorf("middleware and handler order = %q, want %q", got, want)
+	}
+}
+
 func TestCallEndpoint(t *testing.T) {
 	tests := []struct {
 		name      string
