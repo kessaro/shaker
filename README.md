@@ -85,6 +85,24 @@ if err := v1.Post("/users", createUserHandler, http.StatusCreated); err != nil {
 
 These routes are registered at `/api/v1/users`.
 
+### Middleware
+
+Add middleware to a group with `Use` to apply it to all routes registered in that group. You can also pass middleware to an individual route method after its default status code. Group middleware runs before route-specific middleware, and both run before the endpoint handler.
+
+```go
+api := shaker.Group("/api")
+api.Use(func(ctx *shaker.Context) {
+    ctx.Header("X-API", "v1")
+    ctx.Next()
+})
+
+if err := api.Get("/private", privateHandler, http.StatusOK, authMiddleware); err != nil {
+    log.Fatalf("failed to register handler: %v", err)
+}
+```
+
+Individual-route middleware can also be passed to `Shaker` methods such as `shaker.Get`, not only to group methods.
+
 ## Contributing
 
 Contributions are welcome! Open issues or pull requests for:
