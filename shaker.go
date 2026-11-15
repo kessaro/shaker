@@ -145,31 +145,30 @@ func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
 		if inputCount == 2 {
 			inputStruct = reflect.New(inputType)
 			bindingDest := inputStruct.Interface()
-			// use ShouldBind variants so gin does not write a response on error; we
-			// want to delegate error handling to handleErr.
+			// Use ShouldBind variants so binding errors can be returned as 400.
 			if hasUriTags(bindingDest) {
 				if err := ctx.ShouldBindUri(bindingDest); err != nil {
-					handleErr(ctx, &sf, err, nil)
+					handleBindingErr(ctx, err)
 					return
 				}
 			}
 
 			if hasQueryTags(bindingDest) {
 				if err := ctx.ShouldBindQuery(bindingDest); err != nil {
-					handleErr(ctx, &sf, err, nil)
+					handleBindingErr(ctx, err)
 					return
 				}
 			}
 
 			if hasHeaderTags(bindingDest) {
 				if err := ctx.ShouldBindHeader(bindingDest); err != nil {
-					handleErr(ctx, &sf, err, nil)
+					handleBindingErr(ctx, err)
 					return
 				}
 			}
 
 			if err := ctx.ShouldBind(bindingDest); err != nil {
-				handleErr(ctx, &sf, err, nil)
+				handleBindingErr(ctx, err)
 				return
 			}
 		}
@@ -199,6 +198,10 @@ func (sf shakerFunc) ginize() (gin.HandlerFunc, error) {
 
 type errorBody struct {
 	Err string `json:"error"`
+}
+
+func handleBindingErr(ctx *gin.Context, err error) {
+	ctx.JSON(http.StatusBadRequest, errorBody{Err: err.Error()})
 }
 
 func handleErr(ctx *gin.Context, sf *shakerFunc, err error, out any) {
