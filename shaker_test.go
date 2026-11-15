@@ -297,6 +297,56 @@ func TestCallEndpoint(t *testing.T) {
 			},
 		},
 		{
+			name:   "URI and JSON input",
+			method: post,
+			beforeFct: func(skr *Shaker) {
+				type In struct {
+					ID   string `uri:"id"`
+					Name string `json:"name"`
+				}
+
+				type Out struct {
+					ID   string `json:"id"`
+					Name string `json:"name"`
+				}
+
+				skr.Post("/items/:id", func(ctx *Context, input *In) (Out, error) {
+					return Out{ID: input.ID, Name: input.Name}, nil
+				}, http.StatusOK)
+			},
+			calls: []endpointCall{
+				{
+					endpoint:       "/items/42",
+					payload:        `{"name":"widget"}`,
+					expectedStatus: http.StatusOK,
+					expectedPayload: `{
+						"id": "42",
+						"name": "widget"
+					}`,
+				},
+			},
+		},
+		{
+			name:   "Malformed boolean query input",
+			method: get,
+			beforeFct: func(skr *Shaker) {
+				type In struct {
+					Enabled bool `form:"enabled"`
+				}
+
+				skr.Get("/boolean", func(ctx *Context, input *In) error {
+					return nil
+				}, http.StatusOK)
+			},
+			calls: []endpointCall{
+				{
+					name:           "invalid boolean",
+					endpoint:       "/boolean?enabled=tru",
+					expectedStatus: http.StatusBadRequest,
+				},
+			},
+		},
+		{
 			name:   "Validation error",
 			method: post,
 			beforeFct: func(skr *Shaker) {
